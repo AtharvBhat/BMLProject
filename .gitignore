@@ -4,3 +4,4 @@ dataset/*
 __pycache__
 **/*_saved
 /wandb
+**/thumbnails128x128

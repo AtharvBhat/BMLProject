@@ -173,7 +173,7 @@ def train_loop(config, models, noise_scheduler, optimizer, train_dataloader, lr_
             elif config.model_name == "LDM":
                 with accelerator.accumulate(backbone_model) as _, accelerator.accumulate(vae_model) as _:
                     # Convert images to latent space
-                    latents = vae_model.module.encode(clean_images).latent_dist
+                    latents = vae_model.module.encode(clean_images).latent_dist.sample()
                     latents = latents * 0.18215
                     # Sample noise that we'll add to the latents
                     noise = torch.randn(latents.shape).to(latents.device)
@@ -181,7 +181,7 @@ def train_loop(config, models, noise_scheduler, optimizer, train_dataloader, lr_
                     # (this is the forward diffusion process)
                     noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
                     # Predict the noise residual
-                    noise_pred = backbone_model(noisy_latents, timesteps, return_dict=False)
+                    noise_pred = backbone_model(noisy_latents, timesteps, return_dict=False)[0]
                     # Compute Loss
                     loss = F.mse_loss(noise_pred, noise, reduction="none").mean([1, 2, 3]).mean()
                     model_params = chain(backbone_model.parameters(), vae_model.parameters())
