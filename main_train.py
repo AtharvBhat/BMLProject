@@ -42,7 +42,9 @@ def get_args():
 def get_dataloader(configs, image_transforms):
     if config.dataset == "FFHQ":
         # FFHQ dataset
-        dataset = utils.ffhq_Dataset("../dataset/ffhq/thumbnails128x128/", image_transforms)
+        evens = list(range(0, 100))
+        dataset = utils.ffhq_Dataset("dataset/ffhq/thumbnails128x128/", image_transforms)
+        dataset = torch.utils.data.Subset(dataset, evens) 
         config.image_size = 128
     elif config.dataset == "CIFAR10":
         #cifar10 dataset

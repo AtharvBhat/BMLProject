@@ -137,7 +137,7 @@ def train_loop(config, models, noise_scheduler, optimizer, train_dataloader, lr_
         backbone_model, vae_model, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
             backbone_model, vae_model, optimizer, train_dataloader, lr_scheduler
         )
-        #vae.to(accelerator.device)
+        vae_model.to(accelerator.device)
     else:
         raise NotImplementedError("Model Name not Implemented!") 
 
@@ -171,12 +171,12 @@ def train_loop(config, models, noise_scheduler, optimizer, train_dataloader, lr_
                     noise_pred = backbone_model(noisy_images, timesteps, return_dict=False)[0]
                     # Compute Loss
                     loss = F.mse_loss(noise_pred, noise)
-                    #model_params = backbone_model.parameters()
+                    model_params = backbone_model.parameters()
             elif config.model_name == "LDM":
-                with accelerator.accumulate(backbone_model) as _, accelerator.accumulate(vae_model) as _:
+                with accelerator.accumulate(backbone_model):
                     # Convert images to latent space
                     with torch.no_grad():
-                        latents = vae_model.module.encode(clean_images).latent_dist.sample()
+                        latents = vae_model.encode(clean_images).latent_dist.sample()
                         latents = latents * 0.18215
                     # Sample noise that we'll add to the latents
                     noise = torch.randn(latents.shape).to(latents.device)
@@ -210,7 +210,7 @@ def train_loop(config, models, noise_scheduler, optimizer, train_dataloader, lr_
             if config.model_name == "DDPM":
                 pipeline = DDPMPipeline(unet=accelerator.unwrap_model(backbone_model), scheduler=noise_scheduler)
             elif config.model_name == "LDM":
-                pipeline = LDMPipeline(vqvae=accelerator.unwrap_model(vae_model), unet=accelerator.unwrap_model(backbone_model), scheduler=noise_scheduler)
+                pipeline = LDMPipeline(vqvae=vae_model, unet=accelerator.unwrap_model(backbone_model), scheduler=noise_scheduler)
             else:
                 raise NotImplementedError("Model Name not Implemented!")
 
