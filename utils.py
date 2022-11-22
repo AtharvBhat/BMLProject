@@ -82,7 +82,9 @@ def get_unconditional_unet(config):
     return model
 
 def get_custom_vae(config):
-    model = AutoencoderKL()
+    model = AutoencoderKL.from_pretrained(
+        config.vae_model, subfolder="vae", use_auth_token=config.user_token
+    )
     return model
 
 def make_grid(images, rows, cols):
@@ -173,8 +175,9 @@ def train_loop(config, models, noise_scheduler, optimizer, train_dataloader, lr_
             elif config.model_name == "LDM":
                 with accelerator.accumulate(backbone_model) as _, accelerator.accumulate(vae_model) as _:
                     # Convert images to latent space
-                    latents = vae_model.module.encode(clean_images).latent_dist.sample()
-                    latents = latents * 0.18215
+                    with torch.no_grad():
+                        latents = vae_model.module.encode(clean_images).latent_dist.sample()
+                        latents = latents * 0.18215
                     # Sample noise that we'll add to the latents
                     noise = torch.randn(latents.shape).to(latents.device)
                     # Add noise to the latents according to the noise magnitude at each timestep
@@ -213,7 +216,7 @@ def train_loop(config, models, noise_scheduler, optimizer, train_dataloader, lr_
 
             if (epoch + 1) % config.save_image_epochs == 0 or epoch == config.num_epochs - 1:
                 eval_generations = evaluate(config, epoch, pipeline)
-                accelerator.log({"Generations" : wandb.Image(eval_generations)}, step=epoch)
+                accelerator.log({"Generations" : wandb.Image(eval_generations)})
 
             if (epoch + 1) % config.save_model_epochs == 0 or epoch == config.num_epochs - 1:
                 pipeline.save_pretrained(config.output_dir)
