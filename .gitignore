@@ -2,3 +2,5 @@ dataset/*
 */wandb
 */.ipynb_checkpoints
 __pycache__
+**/*_saved
+/wandb
