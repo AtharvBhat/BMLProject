@@ -45,7 +45,12 @@ def get_dataloader(configs, image_transforms):
         evens = list(range(0, 100))
         dataset = utils.ffhq_Dataset("dataset/ffhq/thumbnails128x128/", image_transforms)
         dataset = torch.utils.data.Subset(dataset, evens) 
-        config.image_size = 128
+        if config.model_name == "DDPM":
+            config.image_size = 128
+        elif config.name == "LDM":
+            config.image_size = 16
+        else:
+            raise NotImplementedError("Model Name not Implemented!")
     elif config.dataset == "CIFAR10":
         #cifar10 dataset
         dataset = torchvision.datasets.CIFAR10(root= "../dataset/", download=True, transform=image_transforms)
