@@ -19,7 +19,8 @@ def get_args():
     parser.add_argument("--run_name", type=str, default="DDPM_CIFAR10_TEST")
     parser.add_argument("--model_name", choices=["DDPM", "LDM"], type=str, default="DDPM")
     parser.add_argument("--vae_model", choices=["CompVis/stable-diffusion-v1-4"], type=str, default="CompVis/stable-diffusion-v1-4")    
-    parser.add_argument("--num_train_timestamps", type=int, default=1000)
+    parser.add_argument("--num_train_timesteps", type=int, default=1000)
+    parser.add_argument("--num_inference_timesteps", type=int, default=1000)
     parser.add_argument("--dataset", choices=["CIFAR10", "FFHQ"], type=str, default="CIFAR10")
     parser.add_argument("--image_size", type=int, default=32)
     parser.add_argument("--train_batch_size", type=int, default=6)
@@ -42,9 +43,10 @@ def get_args():
 def get_dataloader(configs, image_transforms):
     if config.dataset == "FFHQ":
         # FFHQ dataset
-        evens = list(range(0, 100))
+        #splits = list(range(0, 100))
         dataset = utils.ffhq_Dataset("dataset/ffhq/thumbnails128x128/", image_transforms)
-        dataset = torch.utils.data.Subset(dataset, evens) 
+        #dataset = torch.utils.data.Subset(dataset, splits)
+        # set original image size for DDPM and latent feature size for LDM
         if config.model_name == "DDPM":
             config.image_size = 128
         elif config.model_name == "LDM":
@@ -86,7 +88,7 @@ if __name__ == "__main__":
         models["backbone"] = backbone_model
         model_params = backbone_model.parameters()
         optimizer = torch.optim.AdamW(model_params, lr=config.learning_rate)
-        noise_scheduler = DDPMScheduler(num_train_timesteps=config.num_train_timestamps) 
+        noise_scheduler = DDPMScheduler(num_train_timesteps=config.num_train_timesteps) 
     elif config.model_name == "LDM":
         backbone_model = utils.get_unconditional_unet(config)
         #vae_model = AutoencoderKL.from_pretrained(config.vae_model, subfolder="vae", use_auth_token=config.user_token) 
@@ -95,7 +97,7 @@ if __name__ == "__main__":
         models["vae"] = vae_model
         model_params = chain(backbone_model.parameters(), vae_model.parameters())
         optimizer = torch.optim.AdamW(model_params, lr=config.learning_rate)
-        noise_scheduler = DDPMScheduler(num_train_timesteps=config.num_train_timestamps)
+        noise_scheduler = DDIMScheduler(num_train_timesteps=config.num_train_timesteps)
     else:
         raise NotImplementedError("Model Name not Implemented!")
 

@@ -1,4 +1,5 @@
 import torch
+import torch.distributed as dist
 import torch.nn.functional as F
 from itertools import chain
 import numpy as np
@@ -8,13 +9,13 @@ from torch.utils.data import Dataset
 import os
 import torchvision
 import diffusers
-from diffusers import DDPMPipeline, LDMPipeline
+from diffusers import DDPMPipeline, DDIMPipeline, LDMPipeline
 import math
 from accelerate import Accelerator
 from tqdm.auto import tqdm
 from dataclasses import dataclass
 import wandb
-
+from diffusers import DDPMScheduler
 
 def un_normalize_image_tensor(image : torch.tensor):
     return ((image.permute(0, 2, 3, 1) + 1.0) * 127.5).type(torch.uint8).numpy()[0]
@@ -97,13 +98,15 @@ def make_grid(images, rows, cols):
 def evaluate(config, epoch, pipeline):
     # Sample some images from random noise (this is the backward diffusion process).
     # The default pipeline output type is `List[PIL.Image]`
-    print(config.num_train_timestamps)
-    print(pipeline.scheduler)
-    images = pipeline(
+    
+    pipeline_out = pipeline(
         batch_size = config.eval_batch_size, 
-        generator=torch.manual_seed(config.seed),
-        num_inference_timesteps = config.num_train_timestamps
-    ).images
+        generator = torch.manual_seed(config.seed),
+        num_inference_steps = config.num_inference_timesteps,
+    )
+    images = pipeline_out.images    
+
+    #print(f"pipeline.scheduler.timesteps: {pipeline.scheduler.timesteps}")
 
     # Make a grid out of the images
     image_grid = make_grid(images, rows=4, cols=4)
@@ -179,7 +182,10 @@ def train_loop(config, models, noise_scheduler, optimizer, train_dataloader, lr_
                 with accelerator.accumulate(backbone_model):
                     # Convert images to latent space
                     with torch.no_grad():
-                        latents = vae_model.encode(clean_images).latent_dist.sample()
+                        if dist.is_available() and dist.is_initialized():
+                            latents = vae_model.module.encode(clean_images).latent_dist.sample()
+                        else:
+                            latents = vae_model.encode(clean_images).latent_dist.sample()
                         latents = latents * 0.18215
                     # Sample noise that we'll add to the latents
                     noise = torch.randn(latents.shape).to(latents.device)
@@ -213,7 +219,8 @@ def train_loop(config, models, noise_scheduler, optimizer, train_dataloader, lr_
             if config.model_name == "DDPM":
                 pipeline = DDPMPipeline(unet=accelerator.unwrap_model(backbone_model), scheduler=noise_scheduler)
             elif config.model_name == "LDM":
-                pipeline = LDMPipeline(vqvae=vae_model, unet=accelerator.unwrap_model(backbone_model), scheduler=noise_scheduler)
+                #vqvae=accelerator.unwrap_model(vae_model),
+                pipeline = LDMPipeline(vqvae=accelerator.unwrap_model(vae_model), unet=accelerator.unwrap_model(backbone_model), scheduler=noise_scheduler)
             else:
                 raise NotImplementedError("Model Name not Implemented!")
 
