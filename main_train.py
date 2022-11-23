@@ -95,7 +95,7 @@ if __name__ == "__main__":
         models["vae"] = vae_model
         model_params = chain(backbone_model.parameters(), vae_model.parameters())
         optimizer = torch.optim.AdamW(model_params, lr=config.learning_rate)
-        noise_scheduler = DDIMScheduler(num_train_timesteps=config.num_train_timestamps)
+        noise_scheduler = DDPMScheduler(num_train_timesteps=config.num_train_timestamps)
     else:
         raise NotImplementedError("Model Name not Implemented!")
 
