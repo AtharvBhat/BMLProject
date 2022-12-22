@@ -2,7 +2,7 @@
 Monte Carlo Diffusion Models
 
 # Dependencies
-Chekc and install all dependencies
+Check and install all dependencies
 ```
 pip install requirements.txt 
 ```
@@ -11,6 +11,7 @@ accelerate==0.14.0, torch==1.8.1, diffusers==0.7.2
 # Run Examples
 ## Train
 Changing hyperparameters in "config_dict" dictionary of corresponding files and with Accelerate from https://huggingface.co/docs/accelerate/index installed 
+
 Run DDIM train:
 ```
 accelerate launch ddim_train.py
